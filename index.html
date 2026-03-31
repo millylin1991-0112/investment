@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>投資策略模擬器 v7</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+TC:wght@300;400;500&display=swap');
+:root{
+  --bg:#f5f6f8;--bg2:#ffffff;--bg3:#f0f1f4;--bg4:#e2e4ea;
+  --border:rgba(0,0,0,0.09);--border2:rgba(0,0,0,0.18);
+  --text:#1a1a2e;--text2:#555570;--text3:#9090a8;
+  --green:#009e6e;--green2:rgba(0,158,110,0.10);
+  --blue:#2266dd;--blue2:rgba(34,102,221,0.10);
+  --purple:#7c5cbf;--purple2:rgba(124,92,191,0.10);
+  --amber:#c47c00;--amber2:rgba(196,124,0,0.10);
+  --red:#d04040;--red2:rgba(208,64,64,0.10);
+  --mono:'IBM Plex Mono',monospace;--sans:'Noto Sans TC',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.6;}
+.app{display:grid;grid-template-columns:320px 1fr;min-height:100vh;}
+
+/* Sidebar */
+.sidebar{background:var(--bg2);border-right:1px solid var(--border);overflow-y:auto;position:sticky;top:0;height:100vh;}
+.sb-head{padding:16px 16px 12px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg2);z-index:10;box-shadow:0 1px 3px rgba(0,0,0,.06);}
+.sb-head h1{font-family:var(--mono);font-size:12px;font-weight:500;color:var(--green);letter-spacing:.08em;text-transform:uppercase;}
+.sb-head p{font-size:11px;color:var(--text3);font-family:var(--mono);margin-top:1px;}
+.sec{border-bottom:1px solid var(--border);padding:12px 16px;}
+.sec-lbl{font-family:var(--mono);font-size:11px;font-weight:500;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:4px;}
+.sec-lbl::before{content:'';width:3px;height:9px;border-radius:2px;opacity:.6;background:var(--green);}
+.sec-lbl.bl::before{background:var(--blue);}
+.sec-lbl.pu::before{background:var(--purple);}
+.sec-lbl.am::before{background:var(--amber);}
+.sec-lbl.re::before{background:var(--red);}
+.fld{margin-bottom:8px;}
+.fld:last-child{margin-bottom:0;}
+.fl{font-size:12px;color:var(--text2);margin-bottom:3px;display:flex;justify-content:space-between;}
+.fv{font-family:var(--mono);font-size:12px;font-weight:500;color:var(--green);}
+.fv.bl{color:var(--blue);} .fv.pu{color:var(--purple);} .fv.am{color:var(--amber);} .fv.re{color:var(--red);}
+input[type=range]{-webkit-appearance:none;width:100%;height:3px;background:var(--bg4);border-radius:2px;outline:none;cursor:pointer;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;cursor:pointer;}
+input[type=range].gr::-webkit-slider-thumb{background:var(--green);}
+input[type=range].bl::-webkit-slider-thumb{background:var(--blue);}
+input[type=range].pu::-webkit-slider-thumb{background:var(--purple);}
+input[type=range].am::-webkit-slider-thumb{background:var(--amber);}
+input[type=range].re::-webkit-slider-thumb{background:var(--red);}
+.ibox{background:var(--bg3);border-radius:5px;padding:7px 9px;font-size:11px;color:var(--text3);font-family:var(--mono);line-height:1.6;margin-top:5px;border:1px solid var(--border);}
+.ibox b{color:var(--amber);}
+.ibox.g b{color:var(--green);}
+
+/* Main */
+.main{padding:20px 24px;overflow-y:auto;}
+.sc-tabs{display:flex;gap:6px;margin-bottom:13px;}
+.sc-tab{padding:5px 13px;font-family:var(--mono);font-size:11px;background:var(--bg3);border:1px solid var(--border);color:var(--text3);border-radius:20px;cursor:pointer;transition:all .15s;}
+.sc-tab.active{background:var(--green2);border-color:var(--green);color:var(--green);}
+.sc-tab.bear.active{background:var(--red2);border-color:var(--red);color:var(--red);}
+.sc-tab.crash.active{background:var(--amber2);border-color:var(--amber);color:var(--amber);}
+
+.fire-banner{background:linear-gradient(135deg,var(--green2),var(--blue2));border:1px solid rgba(0,158,110,.2);border-radius:10px;padding:12px 16px;margin-bottom:13px;display:flex;align-items:center;gap:14px;}
+.fire-yr{font-family:var(--mono);font-size:28px;font-weight:500;color:var(--green);min-width:80px;}
+.fire-d h3{font-size:13px;font-weight:500;margin-bottom:1px;color:var(--text);}
+.fire-d p{font-size:11px;color:var(--text2);font-family:var(--mono);}
+
+/* KPI */
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;}
+.kpi{background:var(--bg2);border-radius:8px;padding:11px 12px;border:1px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.05);}
+.kpi .kl{font-size:11px;color:var(--text3);font-family:var(--mono);letter-spacing:.03em;margin-bottom:3px;}
+.kpi .kv{font-family:var(--mono);font-size:16px;font-weight:500;}
+.kpi .ks{font-size:10px;color:var(--text3);margin-top:2px;font-family:var(--mono);}
+.kpi.a .kv{color:var(--blue);} .kpi.b .kv{color:var(--green);}
+.kpi.diff .kv{color:var(--purple);} .kpi.warn .kv{color:var(--amber);}
+
+/* Charts */
+.chart-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.05);}
+.chart-ttl{font-family:var(--mono);font-size:11px;color:var(--text2);letter-spacing:.05em;text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:5px;}
+.leg{display:flex;gap:10px;flex-wrap:wrap;}
+.leg span{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text2);font-family:var(--mono);}
+.leg i{width:8px;height:8px;border-radius:2px;display:inline-block;flex-shrink:0;}
+.c2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+
+/* ── THE TABLE ── */
+.tbl-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;overflow-x:auto;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.05);}
+.tbl-ttl{font-family:var(--mono);font-size:11px;color:var(--text2);letter-spacing:.06em;text-transform:uppercase;margin-bottom:9px;}
+table{border-collapse:collapse;font-family:var(--mono);font-size:12px;white-space:nowrap;}
+/* group headers */
+.gh{text-align:center;font-size:11px;font-weight:500;padding:5px 6px;border-bottom:1px solid var(--border);letter-spacing:.04em;}
+.gh.fix{color:var(--text3);background:rgba(0,0,0,0.02);}
+.gh.ra{color:var(--blue);background:var(--blue2);border-left:1px solid rgba(34,102,221,.2);}
+.gh.rb{color:var(--green);background:var(--green2);border-left:1px solid rgba(0,158,110,.2);}
+/* sub headers */
+th{padding:5px 8px;font-weight:500;font-size:11px;letter-spacing:.03em;border-bottom:1px solid var(--border);text-align:right;white-space:nowrap;color:var(--text2);}
+th:first-child{text-align:left;}
+th.fix{color:var(--text3);}
+th.ha{color:var(--blue);}
+th.hb{color:var(--green);}
+th.sep-a{border-left:1px solid rgba(34,102,221,.2);}
+th.sep-b{border-left:1px solid rgba(0,158,110,.2);}
+/* cells */
+td{padding:5px 8px;border-bottom:1px solid var(--border);text-align:right;white-space:nowrap;font-size:12px;}
+td:first-child{text-align:left;color:var(--text2);}
+tr:last-child td{border-bottom:none;}
+tr.mil{background:rgba(0,0,0,0.02);}
+tr.start-row td{color:var(--text3);}
+tr:hover td{background:rgba(0,0,0,0.015);}
+.ca{color:var(--blue);} .cb{color:var(--green);} .cp{color:var(--purple);}
+.cw{color:var(--amber);} .cr{color:var(--red);} .cd{color:var(--text3);}
+.cn{color:var(--text);}
+.sep-a{border-left:1px solid rgba(34,102,221,.15);}
+.sep-b{border-left:1px solid rgba(0,158,110,.15);}
+.ph{font-size:10px;padding:1px 4px;border-radius:3px;background:var(--bg3);color:var(--text3);margin-left:3px;border:1px solid var(--border);}
+.ph.st{background:var(--amber2);color:var(--amber);border-color:rgba(196,124,0,.3);}
+.note-box{font-size:11px;color:var(--text3);font-family:var(--mono);padding:9px 12px;border-left:3px solid var(--border2);line-height:1.8;background:var(--bg2);border-radius:0 6px 6px 0;}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:3px;}
+
+/* ── Custom input tables ── */
+.input-tbl{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px;margin-top:5px;}
+.input-tbl th{padding:3px 5px;color:var(--text3);font-weight:400;border-bottom:1px solid var(--border);text-align:left;}
+.input-tbl td{padding:2px 3px;}
+.input-tbl input[type=number]{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:3px;color:var(--text);font-family:var(--mono);font-size:11px;padding:3px 6px;outline:none;}
+.input-tbl input[type=number]:focus{border-color:var(--border2);}
+.input-tbl input[type=number]::placeholder{color:var(--text3);}
+.add-row-btn{margin-top:6px;padding:4px 10px;font-family:var(--mono);font-size:11px;background:var(--bg3);border:1px solid var(--border);color:var(--text2);border-radius:4px;cursor:pointer;}
+.add-row-btn:hover{border-color:var(--border2);color:var(--text);}
+.del-btn{padding:2px 6px;background:var(--red2);border:1px solid rgba(208,64,64,.25);color:var(--red);border-radius:3px;cursor:pointer;font-size:10px;font-family:var(--mono);}
+.del-btn:hover{background:rgba(208,64,64,.2);}
+/* ── Collapsible optional sections — prominent card style ── */
+.opt-block{margin-top:8px;border-radius:7px;border:1.5px dashed var(--border2);overflow:hidden;}
+.coll-btn{width:100%;font-family:var(--mono);font-size:11px;font-weight:500;color:var(--text2);background:var(--bg3);border:none;cursor:pointer;padding:7px 10px;display:flex;align-items:center;gap:6px;text-align:left;}
+.coll-btn:hover{background:var(--bg4);color:var(--text);}
+.coll-btn::before{content:'＋';font-size:13px;font-weight:700;color:var(--amber);flex-shrink:0;transition:transform .15s;}
+.coll-btn.open::before{content:'－';}
+.coll-content{display:none;padding:8px 10px;background:var(--bg2);border-top:1px solid var(--border);}
+.coll-content.open{display:block;}
+.opt-label{font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:5px;line-height:1.5;}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+<div class="sb-head"><h1>投資策略模擬器</h1><p>// v8.0 — bug fixes + presets</p>
+<button onclick="loadPreset()" style="margin-top:8px;width:100%;padding:6px 0;font-family:var(--mono);font-size:11px;background:linear-gradient(135deg,var(--green2),var(--blue2));border:1px solid rgba(0,158,110,.3);color:var(--green);border-radius:5px;cursor:pointer;font-weight:500;letter-spacing:.05em;">▶ 載入範例：台北雙薪族</button>
+</div>
+
+<div class="sec">
+  <div class="sec-lbl">初始資產</div>
+  <div class="fld"><div class="fl">現金（萬）<span class="fv" id="v-cash">0</span></div><input type="range" class="gr" min="0" max="1000" step="10" value="0" id="s-cash"></div>
+  <div class="fld"><div class="fl">現金投入比例（%）<span class="fv" id="v-cashp">0</span>%</div><input type="range" class="gr" min="0" max="100" step="5" value="0" id="s-cashp"></div>
+  <div class="ibox g" id="cash-info">保留 0萬 / 投入 0050 共 0萬</div>
+  <div class="fld" style="margin-top:7px;"><div class="fl">台股 0050（萬）<span class="fv" id="v-tw">0</span></div><input type="range" class="gr" min="0" max="500" step="10" value="0" id="s-tw"></div>
+  <div class="fld"><div class="fl">美股 ETF（萬）<span class="fv" id="v-us">0</span></div><input type="range" class="gr" min="0" max="500" step="10" value="0" id="s-us"></div>
+  <div class="fld"><div class="fl">頭期款（萬，獨立備妥）<span class="fv" id="v-dp">0</span></div><input type="range" class="gr" min="0" max="2500" step="50" value="0" id="s-dp"></div>
+</div>
+
+<div class="sec">
+  <div class="sec-lbl bl">房貸</div>
+  <div class="fld"><div class="fl">房屋總價（萬）<span class="fv bl" id="v-hp">0</span></div><input type="range" class="bl" min="0" max="6000" step="100" value="0" id="s-hp"></div>
+  <div class="fld"><div class="fl">房貸利率（%）<span class="fv bl" id="v-mr">2.0</span></div><input type="range" class="bl" min="0.5" max="6" step="0.1" value="2.0" id="s-mr"></div>
+  <div class="fld"><div class="fl">房貸月供（萬）<span class="fv bl" id="v-mg">0</span></div><input type="range" class="bl" min="0" max="15" step="0.5" value="0" id="s-mg"></div>
+  <div class="fld"><div class="fl">房貸年限（年）<span class="fv bl" id="v-ml">0</span></div><input type="range" class="bl" min="0" max="40" step="5" value="0" id="s-ml"></div>
+  <div class="opt-block">
+    <button class="coll-btn" id="btn-prepay" onclick="toggleColl('prepay')">一次性大筆還款（選填）</button>
+    <div class="coll-content" id="coll-prepay">
+      <div class="opt-label">A/B 路線同步扣除，直接減少房貸餘額</div>
+      <table class="input-tbl">
+        <thead><tr><th>年份</th><th>金額（萬）</th><th></th></tr></thead>
+        <tbody id="prepay-tbody"></tbody>
+      </table>
+      <button class="add-row-btn" onclick="addPrepayRow()">＋ 新增還款</button>
+    </div>
+  </div>
+</div>
+
+<div class="sec">
+  <div class="sec-lbl pu">薪資 ＆ 生活費</div>
+  <div class="fld"><div class="fl">起始年薪（萬）<span class="fv pu" id="v-sal">0</span></div><input type="range" class="pu" min="0" max="600" step="10" value="0" id="s-sal"></div>
+  <div class="fld"><div class="fl">目標年薪（萬）<span class="fv pu" id="v-sal2">0</span></div><input type="range" class="pu" min="0" max="800" step="10" value="0" id="s-sal2"></div>
+  <div class="fld"><div class="fl">薪資成長年限<span class="fv pu" id="v-grow">0</span>年</div><input type="range" class="pu" min="0" max="25" step="1" value="0" id="s-grow"></div>
+  <div class="opt-block">
+    <button class="coll-btn" id="btn-salov" onclick="toggleColl('salov')">逐年覆蓋年收入（選填）</button>
+    <div class="coll-content" id="coll-salov">
+      <div class="opt-label">指定年份的年收入將覆蓋公式（空白＝使用公式）</div>
+      <table class="input-tbl">
+        <thead><tr><th>年份</th><th>年收入（萬）</th><th></th></tr></thead>
+        <tbody id="salov-tbody"></tbody>
+      </table>
+      <button class="add-row-btn" onclick="addOverrideRow('salov')">＋ 新增年份</button>
+    </div>
+  </div>
+  <div class="fld" style="margin-top:8px;"><div class="fl">生活費（萬/月）<span class="fv pu" id="v-liv">0</span></div><input type="range" class="pu" min="0" max="20" step="0.5" value="0" id="s-liv"></div>
+  <div class="opt-block">
+    <button class="coll-btn" id="btn-lump" onclick="toggleColl('lump')">單次大額支出（選填）</button>
+    <div class="coll-content" id="coll-lump">
+      <div class="opt-label">A/B 路線同步扣除現金</div>
+      <table class="input-tbl">
+        <thead><tr><th>年份</th><th>金額（萬）</th><th>備註</th><th></th></tr></thead>
+        <tbody id="lump-tbody"></tbody>
+      </table>
+      <button class="add-row-btn" onclick="addLumpRow()">＋ 新增支出</button>
+    </div>
+  </div>
+</div>
+
+<div class="sec">
+  <div class="sec-lbl pu">工作年限</div>
+  <div class="fld"><div class="fl">工作年數（年，0＝不限）<span class="fv pu" id="v-wy">0</span></div><input type="range" class="pu" min="0" max="50" step="1" value="0" id="s-wy"></div>
+  <div class="ibox" id="work-info">不限工作年限，薪資依公式持續</div>
+</div>
+
+<div class="sec">
+  <div class="sec-lbl">A 路線月投</div>
+  <div class="fld"><div class="fl">初始月投（萬）<span class="fv" id="v-ami">0</span></div><input type="range" class="gr" min="0" max="30" step="0.5" value="0" id="s-ami"></div>
+  <div class="fld"><div class="fl">年增額（萬）<span class="fv" id="v-amig">0</span></div><input type="range" class="gr" min="0" max="3" step="0.1" value="0" id="s-amig"></div>
+  <div class="fld"><div class="fl">月投上限（萬）<span class="fv" id="v-amim">0</span></div><input type="range" class="gr" min="0" max="50" step="0.5" value="0" id="s-amim"></div>
+  <div class="fld"><div class="fl">投資持續年限<span class="fv" id="v-aiy">0</span>年</div><input type="range" class="gr" min="0" max="50" step="1" value="0" id="s-aiy"></div>
+  <div class="opt-block">
+    <button class="coll-btn" id="btn-aov" onclick="toggleColl('aov')">逐年覆蓋月投（選填）</button>
+    <div class="coll-content" id="coll-aov">
+      <div class="opt-label">指定年份的月投金額將覆蓋公式計算值</div>
+      <table class="input-tbl">
+        <thead><tr><th>年份</th><th>月投（萬）</th><th></th></tr></thead>
+        <tbody id="aov-tbody"></tbody>
+      </table>
+      <button class="add-row-btn" onclick="addOverrideRow('aov')">＋ 新增年份</button>
+    </div>
+  </div>
+</div>
+
+<div class="sec">
+  <div class="sec-lbl">B 路線月投</div>
+  <div class="fld"><div class="fl">初始月投（萬）<span class="fv" id="v-bmi">0</span></div><input type="range" class="gr" min="0" max="30" step="0.5" value="0" id="s-bmi"></div>
+  <div class="fld"><div class="fl">年增額（萬）<span class="fv" id="v-bmig">0</span></div><input type="range" class="gr" min="0" max="3" step="0.1" value="0" id="s-bmig"></div>
+  <div class="fld"><div class="fl">月投上限（萬）<span class="fv" id="v-bmim">0</span></div><input type="range" class="gr" min="0" max="50" step="0.5" value="0" id="s-bmim"></div>
+  <div class="fld"><div class="fl">投資持續年限<span class="fv" id="v-biy">0</span>年</div><input type="range" class="gr" min="0" max="50" step="1" value="0" id="s-biy"></div>
+  <div class="fld" style="margin-top:4px;background:var(--green2);border-radius:6px;padding:7px 8px;border:1px solid rgba(0,158,110,.15);">
+    <div style="font-size:10px;color:var(--green);font-family:var(--mono);margin-bottom:5px;font-weight:500;">信貸還清後策略</div>
+    <div class="fl">還清後月投增加（萬）<span class="fv" id="v-bpa">0</span></div>
+    <input type="range" class="gr" min="0" max="10" step="0.5" value="0" id="s-bpa">
+    <div class="ibox g" style="margin-top:4px;" id="bpa-info">信貸還清後，月投維持原上限</div>
+  </div>
+  <div class="opt-block">
+    <button class="coll-btn" id="btn-bov" onclick="toggleColl('bov')">逐年覆蓋月投（選填）</button>
+    <div class="coll-content" id="coll-bov">
+      <div class="opt-label">指定年份的月投金額將覆蓋公式計算值</div>
+      <table class="input-tbl">
+        <thead><tr><th>年份</th><th>月投（萬）</th><th></th></tr></thead>
+        <tbody id="bov-tbody"></tbody>
+      </table>
+      <button class="add-row-btn" onclick="addOverrideRow('bov')">＋ 新增年份</button>
+    </div>
+  </div>
+  <div class="opt-block" style="margin-top:6px;">
+    <button class="coll-btn" id="btn-sell" onclick="toggleColl('sell')">賣出股票套現（選填）</button>
+    <div class="coll-content" id="coll-sell">
+      <div class="opt-label">指定年份賣出台股或美股，轉為現金（A/B同步）</div>
+      <table class="input-tbl">
+        <thead><tr><th>年份</th><th>台股賣出（萬）</th><th>美股賣出（萬）</th><th></th></tr></thead>
+        <tbody id="sell-tbody"></tbody>
+      </table>
+      <button class="add-row-btn" onclick="addSellRow()">＋ 新增賣出</button>
+    </div>
+  </div>
+</div>
+
+<div class="sec">
+  <div class="sec-lbl">報酬率 ＆ 年限</div>
+  <div class="fld"><div class="fl">0050 年化報酬（%）<span class="fv" id="v-rTW">8</span></div><input type="range" class="gr" min="4" max="14" step="0.5" value="8" id="s-rTW"></div>
+  <div class="fld"><div class="fl">美股年化報酬（%）<span class="fv" id="v-rUS">10</span></div><input type="range" class="gr" min="4" max="16" step="0.5" value="10" id="s-rUS"></div>
+  <div class="fld"><div class="fl">模擬總年限<span class="fv" id="v-ty">40</span>年</div><input type="range" class="gr" min="10" max="50" step="5" value="40" id="s-ty"></div>
+</div>
+
+<div class="sec">
+  <div class="sec-lbl am">台股質押（B路線）</div>
+  <div style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:6px;line-height:1.6;">
+    可借額 = 市值 ÷ (維持率−100%)<br>每年在維持率範圍內增貸（上限市值8%）
+  </div>
+  <div class="fld"><div class="fl">質押利率（%）<span class="fv am" id="v-pc">2.6</span></div><input type="range" class="am" min="1.5" max="5" step="0.1" value="2.6" id="s-pc"></div>
+  <div class="fld"><div class="fl">維持率目標（%，0=不使用質押）<span class="fv am" id="v-pm">275</span></div><input type="range" class="am" min="0" max="400" step="5" value="275" id="s-pm"></div>
+  <div class="fld"><div class="fl">增貸年限（年，0=不限）<span class="fv am" id="v-ply">0</span></div><input type="range" class="am" min="0" max="30" step="1" value="0" id="s-ply"></div>
+  <div class="fld"><div class="fl">借款上限（萬，0=不限）<span class="fv am" id="v-plc">0</span></div><input type="range" class="am" min="0" max="2000" step="50" value="0" id="s-plc"></div>
+  <div class="ibox" id="pledge-info">首批借出 62萬（170萬÷275%）</div>
+  <div class="opt-block" style="margin-top:8px;">
+    <button class="coll-btn" id="btn-pledgerepay" onclick="toggleColl('pledgerepay')">一次性償還質押借款（選填）</button>
+    <div class="coll-content" id="coll-pledgerepay">
+      <div class="opt-label">指定年份還款，直接減少質押餘額與後續利息（僅B路線）</div>
+      <table class="input-tbl">
+        <thead><tr><th>年份</th><th>還款金額（萬）</th><th></th></tr></thead>
+        <tbody id="pledgerepay-tbody"></tbody>
+      </table>
+      <button class="add-row-btn" onclick="addPledgeRepayRow()">＋ 新增還款</button>
+    </div>
+  </div>
+</div>
+
+<div class="sec">
+  <div class="sec-lbl am">信貸（B路線）</div>
+  <div class="fld"><div class="fl">信貸金額（萬）<span class="fv am" id="v-pl">0</span></div><input type="range" class="am" min="0" max="3000" step="50" value="0" id="s-pl"></div>
+  <div class="fld"><div class="fl">信貸利率（%）<span class="fv am" id="v-plr">3.5</span></div><input type="range" class="am" min="2" max="8" step="0.1" value="3.5" id="s-plr"></div>
+  <div class="fld"><div class="fl">信貸年限（年）<span class="fv am" id="v-pll">5</span></div><input type="range" class="am" min="1" max="30" step="1" value="5" id="s-pll"></div>
+  <div class="ibox" id="loan-info">未使用信貸</div>
+</div>
+
+<div class="sec">
+  <div class="sec-lbl re">FIRE 退休設定</div>
+  <div class="fld"><div class="fl">退休年支出（萬）<span class="fv re" id="v-fe">120</span></div><input type="range" class="re" min="60" max="400" step="10" value="120" id="s-fe"></div>
+  <div class="fld"><div class="fl">安全提領率（%）<span class="fv re" id="v-fw">4</span></div><input type="range" class="re" min="2" max="6" step="0.1" value="4" id="s-fw"></div>
+</div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+<div class="sc-tabs">
+  <button class="sc-tab active" onclick="setScenario('base',this)">基準情境</button>
+  <button class="sc-tab bear" onclick="setScenario('bear',this)">熊市（連跌3年）</button>
+  <button class="sc-tab crash" onclick="setScenario('crash',this)">崩盤（第5年-45%）</button>
+</div>
+
+<div class="fire-banner" id="fire-banner">
+  <div class="fire-yr" id="fire-yr">—</div>
+  <div class="fire-d"><h3 id="fire-title">計算中...</h3><p id="fire-desc"></p></div>
+</div>
+
+<div class="kpi-row" id="kpi-row"></div>
+
+<!-- Charts -->
+<div class="c2">
+  <div class="chart-card" style="margin-bottom:0">
+    <div class="chart-ttl">
+      <span>淨資產成長</span>
+      <div class="leg">
+        <span><i style="background:#00e5a0"></i>B淨資產</span>
+        <span><i style="background:#4488ff"></i>A淨資產</span>
+        <span><i style="background:#a78bfa;opacity:.6"></i>美股</span>
+        <span><i style="background:#f59e0b;opacity:.5"></i>B負債</span>
+      </div>
+    </div>
+    <div style="position:relative;height:200px"><canvas id="chart-main"></canvas></div>
+  </div>
+  <div class="chart-card" style="margin-bottom:0">
+    <div class="chart-ttl">
+      <span>月投入 ＆ FIRE 進度</span>
+      <div class="leg">
+        <span><i style="background:#00e5a0"></i>B月投</span>
+        <span><i style="background:#4488ff"></i>A月投</span>
+        <span><i style="background:#f87171;opacity:.5"></i>FIRE目標</span>
+        <span><i style="background:#00e5a0;opacity:.4"></i>B淨資產</span>
+      </div>
+    </div>
+    <div style="position:relative;height:200px"><canvas id="chart-fire"></canvas></div>
+  </div>
+</div>
+
+<!-- ── EXCEL-STYLE TABLE ── -->
+<div class="tbl-wrap">
+  <div class="tbl-ttl">逐年明細 — 完整資產負債現金流（金額單位：萬，現金流為年度合計）</div>
+  <table id="main-table">
+    <thead>
+      <tr>
+        <th rowspan="2" class="fix" style="text-align:left;vertical-align:bottom;">年份</th>
+        <!-- Fixed: income/expense, same for both routes -->
+        <th colspan="5" class="gh fix">年度收支（共同）</th>
+        <!-- A -->
+        <th colspan="6" class="gh ra">A 路線</th>
+        <!-- B -->
+        <th colspan="11" class="gh rb">B 路線</th>
+      </tr>
+      <tr>
+        <!-- Fixed sub: annual -->
+        <th class="fix">年收入</th>
+        <th class="fix">年生活費</th>
+        <th class="fix">年房貸</th>
+        <th class="fix">一次還款</th>
+        <th class="fix">單次支出</th>
+        <!-- A sub -->
+        <th class="ha sep-a">年投入</th>
+        <th class="ha">總現金餘</th>
+        <th class="ha">台股總額</th>
+        <th class="ha">美股總額</th>
+        <th class="ha">房貸餘額</th>
+        <th class="ha">淨資產</th>
+        <!-- B sub -->
+        <th class="hb sep-b">年投入</th>
+        <th class="hb">年信貸還款</th>
+        <th class="hb">年質押利息</th>
+        <th class="hb">總現金餘</th>
+        <th class="hb">台股總額</th>
+        <th class="hb">美股總額</th>
+        <th class="hb">質押借款</th>
+        <th class="hb">信貸餘額</th>
+        <th class="hb">房貸餘額</th>
+        <th class="hb">維持率</th>
+        <th class="hb">淨資產</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<div class="note-box" id="note-box"></div>
+</main>
+</div>
+
+<script>
+let charts={}, scenario='base';
+const g=id=>document.getElementById(id);
+const fmt=n=>Math.round(n).toLocaleString();
+const fD=(n,d=1)=>Number(n).toFixed(d);
+const fP=n=>Math.round(n)+'%';
+
+function setScenario(s,el){
+  scenario=s;
+  document.querySelectorAll('.sc-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active'); update();
+}
+
+const sKeys=['cash','cashp','tw','us','dp','hp','mr','mg','ml','sal','sal2','grow','liv','wy',
+  'ami','amig','amim','aiy','bmi','bmig','bmim','biy','bpa',
+  'rTW','rUS','ty','pc','pm','ply','plc','pl','plr','pll','fe','fw'];
+sKeys.forEach(k=>{
+  const el=g('s-'+k);
+  if(el) el.addEventListener('input',()=>{g('v-'+k).textContent=el.value; syncInfoBoxes(); update();});
+});
+
+// ── Collapsible panels ──
+function toggleColl(id){
+  const btn=g('btn-'+id), content=g('coll-'+id);
+  btn.classList.toggle('open');
+  content.classList.toggle('open');
+}
+
+// ── Override row helpers ──
+function addOverrideRow(tableId){
+  const tbody=g(tableId+'-tbody');
+  const tr=document.createElement('tr');
+  tr.innerHTML=`<td><input type="number" min="1" max="99" step="1" placeholder="年份" style="width:52px" onchange="update()"></td>`+
+    `<td><input type="number" min="0" max="200" step="0.1" placeholder="金額" onchange="update()"></td>`+
+    `<td><button class="del-btn" onclick="this.closest('tr').remove();update()">✕</button></td>`;
+  tbody.appendChild(tr);
+}
+
+function addLumpRow(){
+  const tbody=g('lump-tbody');
+  const tr=document.createElement('tr');
+  tr.innerHTML=`<td><input type="number" min="1" max="99" step="1" placeholder="年份" style="width:45px" onchange="update()"></td>`+
+    `<td><input type="number" min="0" max="5000" step="10" placeholder="金額" onchange="update()"></td>`+
+    `<td><input type="text" placeholder="備註" style="width:60px;background:var(--bg3);border:1px solid var(--border);border-radius:3px;color:var(--text2);font-family:var(--mono);font-size:10px;padding:2px 4px;"></td>`+
+    `<td><button class="del-btn" onclick="this.closest('tr').remove();update()">✕</button></td>`;
+  tbody.appendChild(tr);
+}
+
+function addPrepayRow(){
+  const tbody=g('prepay-tbody');
+  const tr=document.createElement('tr');
+  tr.innerHTML=`<td><input type="number" min="1" max="99" step="1" placeholder="年份" style="width:52px" onchange="update()"></td>`+
+    `<td><input type="number" min="0" max="5000" step="10" placeholder="金額" onchange="update()"></td>`+
+    `<td><button class="del-btn" onclick="this.closest('tr').remove();update()">✕</button></td>`;
+  tbody.appendChild(tr);
+}
+
+// ── Read override tables ──
+function readOverride(tableId){
+  const map={};
+  g(tableId+'-tbody').querySelectorAll('tr').forEach(tr=>{
+    const ins=tr.querySelectorAll('input[type=number]');
+    const yr=+ins[0].value;
+    // Allow val=0 as a valid override (e.g. forced zero investment year)
+    if(yr>0 && ins[1].value!=='') map[yr]=+ins[1].value;
+  });
+  return map;
+}
+
+function readLumps(tableId){
+  const arr=[];
+  g(tableId+'-tbody').querySelectorAll('tr').forEach(tr=>{
+    const ins=tr.querySelectorAll('input[type=number]');
+    const yr=+ins[0].value, val=+ins[1].value;
+    if(yr>0 && val>0) arr.push({yr,val});
+  });
+  return arr;
+}
+
+function addPledgeRepayRow(){
+  const tbody=g('pledgerepay-tbody');
+  const tr=document.createElement('tr');
+  tr.innerHTML=`<td><input type="number" min="1" max="99" step="1" placeholder="年份" style="width:52px" onchange="update()"></td>`+
+    `<td><input type="number" min="0" max="99999" step="10" placeholder="金額" onchange="update()"></td>`+
+    `<td><button class="del-btn" onclick="this.closest('tr').remove();update()">✕</button></td>`;
+  tbody.appendChild(tr);
+}
+
+function readPledgeRepays(){
+  const arr=[];
+  g('pledgerepay-tbody').querySelectorAll('tr').forEach(tr=>{
+    const ins=tr.querySelectorAll('input[type=number]');
+    const yr=+ins[0].value, val=+ins[1].value;
+    if(yr>0&&val>0) arr.push({yr,val});
+  });
+  return arr;
+}
+
+function addSellRow(){
+  const tbody=g('sell-tbody');
+  const tr=document.createElement('tr');
+  tr.innerHTML=`<td><input type="number" min="1" max="99" step="1" placeholder="年份" style="width:45px" onchange="update()"></td>`+
+    `<td><input type="number" min="0" max="99999" step="10" placeholder="台股" onchange="update()"></td>`+
+    `<td><input type="number" min="0" max="99999" step="10" placeholder="美股" onchange="update()"></td>`+
+    `<td><button class="del-btn" onclick="this.closest('tr').remove();update()">✕</button></td>`;
+  tbody.appendChild(tr);
+}
+
+function readSells(){
+  const arr=[];
+  g('sell-tbody').querySelectorAll('tr').forEach(tr=>{
+    const ins=tr.querySelectorAll('input[type=number]');
+    const yr=+ins[0].value;
+    const tw=+ins[1].value||0;
+    const us=+ins[2].value||0;
+    if(yr>0&&(tw>0||us>0)) arr.push({yr,tw,us});
+  });
+  return arr;
+}
+
+function syncInfoBoxes(){
+  const cash=+g('s-cash').value, pct=+g('s-cashp').value/100;
+  const inv=Math.round(cash*pct), keep=cash-inv;
+  g('cash-info').innerHTML=`保留 <b>${keep}萬</b> / 投入 0050 <b>${inv}萬</b>`;
+
+  const tw=+g('s-tw').value, pm=+g('s-pm').value/100;
+  const cashInvNow=+g('s-cash').value * (+g('s-cashp').value/100);
+  const plNow=+g('s-pl').value;
+  const pledgeBaseNow=tw+cashInvNow+plNow;
+  const plyNow=+g('s-ply').value, plcNow=+g('s-plc').value;
+  if(pm<=0||pm===1){
+    g('pledge-info').innerHTML=`<b style="color:var(--text2)">質押停用</b>，B路線與A路線相同（僅信貸差異）`;
+  } else {
+    const pledgeInitNow=Math.round(pledgeBaseNow/(pm-1));
+    const capStr = plcNow>0 ? `上限 <b>${plcNow}萬</b>` : '不限金額';
+    const yrStr  = plyNow>0 ? `前 <b>${plyNow}年</b>增貸` : '不限年限';
+    g('pledge-info').innerHTML=`質押標的：0050共 <b>${Math.round(pledgeBaseNow)}萬</b>（原${tw}萬+現金投入${Math.round(cashInvNow)}萬+信貸${plNow}萬）<br>首批借出 <b>${pledgeInitNow}萬</b>（${Math.round(pledgeBaseNow)}萬÷(${Math.round(pm*100)}%-100%)）<br>增貸限制：${capStr}，${yrStr}`;
+  }
+
+  const pl=+g('s-pl').value, plr=+g('s-plr').value/100, pll=+g('s-pll').value;
+  if(pl>0){
+    const r=plr/12, n=pll*12;
+    const mp=pl*r*Math.pow(1+r,n)/(Math.pow(1+r,n)-1);
+    g('loan-info').innerHTML=`月還款 <b>${fD(mp,2)}萬</b>，第一天全投 0050，還清後釋出月投空間`;
+  } else {
+    g('loan-info').innerHTML=`未使用信貸`;
+  }
+
+  const bpa=+g('s-bpa').value, bmim=+g('s-bmim').value, pll2=+g('s-pll').value;
+  if(bpa>0 && pl>0){
+    g('bpa-info').innerHTML=`信貸 ${pll2}年還清後，月投上限升至 <b>${fD(bmim+bpa,1)}萬</b>`;
+  } else if(bpa>0) {
+    g('bpa-info').innerHTML=`需先設定信貸金額才生效`;
+  } else {
+    g('bpa-info').innerHTML=`信貸還清後，月投維持 ${bmim}萬上限`;
+  }
+
+  const wy=+g('s-wy').value;
+  g('work-info').textContent=wy>0?`第 ${wy} 年後停止領薪`:'不限工作年限，薪資依公式持續';
+}
+
+function getP(){
+  const n=k=>+g('s-'+k).value;
+  return{
+    cash:n('cash'), cashp:n('cashp')/100, tw:n('tw'), us:n('us'), dp:n('dp'),
+    hp:n('hp'), mr:n('mr')/100, mg:n('mg'), ml:n('ml'),
+    sal:n('sal'), sal2:n('sal2'), grow:n('grow'), liv:n('liv'), wy:n('wy'),
+    ami:n('ami'), amig:n('amig'), amim:n('amim'), aiy:n('aiy'),
+    bmi:n('bmi'), bmig:n('bmig'), bmim:n('bmim'), biy:n('biy'), bpa:n('bpa'),
+    rTW:n('rTW'), rUS:n('rUS'), ty:n('ty'),
+    pc:n('pc')/100, pm:n('pm')/100, ply:n('ply'), plc:n('plc'),
+    pl:n('pl'), plr:n('plr')/100, pll:n('pll'),
+    fe:n('fe'), fw:n('fw')/100,
+    // override maps
+    salOv: readOverride('salov'),
+    aOv:   readOverride('aov'),
+    bOv:   readOverride('bov'),
+    prepays: readLumps('prepay'),
+    lumps:   readLumps('lump'),
+    sells:   readSells(),
+    pledgeRepays: readPledgeRepays(),
+  };
+}
+
+function getSal(yr,p){
+  if(p.wy>0 && yr>p.wy) return 0;
+  if(p.salOv && p.salOv[yr]!==undefined) return p.salOv[yr];
+  return yr<=p.grow?p.sal+(p.sal2-p.sal)*(yr/p.grow):p.sal2;
+}
+
+// A monthly invest — work years no longer stop investment
+function getMInvA(yr,p){
+  if(yr>p.aiy) return 0;
+  if(p.aOv && p.aOv[yr]!==undefined) return p.aOv[yr];
+  return Math.min(p.ami+(yr-1)*p.amig, p.amim);
+}
+
+// B monthly invest from salary (after loan is repaid, can invest more) — work years no longer stop investment
+function getMInvB_sal(yr,p){
+  if(yr>p.biy) return 0;
+  if(p.bOv && p.bOv[yr]!==undefined) return p.bOv[yr];
+  const loanDone = p.pl>0 && yr>p.pll;
+  const cap = loanDone && p.bpa>0 ? p.bmim+p.bpa : p.bmim;
+  return Math.min(p.bmi+(yr-1)*p.bmig, cap);
+}
+
+function getRate(yr,base){
+  if(scenario==='base') return base;
+  if(scenario==='bear'){if(yr>=3&&yr<=5)return -10; if(yr===6)return base*1.6; return base;}
+  if(scenario==='crash'){if(yr===5)return -45; if(yr===6)return base*2.2; return base;}
+  return base;
+}
+
+function mortRem(yr,p){
+  const base=p.hp-p.dp;
+  if(base<=0||p.ml<=0||p.mg<=0) return 0;
+  const monthlyR = (p.mr||0)/12;
+  let rem=base;
+  for(let y=1;y<=yr;y++){
+    // Each month: accrue interest then pay installment
+    for(let m=0;m<12;m++){
+      rem = rem*(1+monthlyR) - p.mg;
+      if(rem<=0){rem=0;break;}
+    }
+    // Apply prepayments at end of year
+    if(p.prepays){
+      for(const pp of p.prepays){
+        if(pp.yr===y) rem=Math.max(0, rem-pp.val);
+      }
+    }
+    if(rem<=0) return 0;
+  }
+  if(yr>=p.ml) return 0;
+  return Math.max(0,rem);
+}
+
+function loanMPay(p){
+  if(p.pl<=0||p.pll<=0) return 0;
+  const r=p.plr/12, n=p.pll*12;
+  return p.pl*r*Math.pow(1+r,n)/(Math.pow(1+r,n)-1);
+}
+
+function loanRem(yr,p){
+  if(p.pl<=0||yr>=p.pll) return 0;
+  const r=p.plr/12, n=p.pll*12, paid=yr*12;
+  if(paid>=n) return 0;
+  const mp=loanMPay(p);
+  // Standard amortization: Rem = PV*(1+r)^paid - MP*[(1+r)^paid - 1]/r
+  return p.pl*Math.pow(1+r,paid) - mp*(Math.pow(1+r,paid)-1)/r;
+}
+
+function calcAll(p){
+  const YEARS=p.ty;
+  const cashInvested=p.cash*p.cashp;
+  const cashReserved=p.cash*(1-p.cashp);
+
+  // All 0050 holdings: original TW stock + cash invested + personal loan all go into 0050
+  // pledgeableBase is the total collateral for the pledge facility
+  const pledgeableBase=p.tw+cashInvested+p.pl;
+  // pm=0 means pledge disabled entirely
+  const pledgeOn = p.pm > 0;
+  const pledgeInit = pledgeOn ? pledgeableBase/(p.pm-1) : 0;
+  const mLoanPay=loanMPay(p);
+
+  let aStock=p.tw+cashInvested;
+  // B: if pledge on, 0050 = pledgeableBase + pledgeInit; otherwise just pledgeableBase
+  let bStock=pledgeableBase+pledgeInit;
+  let usStock=p.us;
+
+  let aCash=cashReserved;
+  let bCash=cashReserved;
+
+  // pledgedVal = total 0050 market value in B
+  let pledgedVal=pledgeableBase+pledgeInit;
+  let pledgeLoan=pledgeInit;
+  let pledgeRepaidOnce=false; // once user makes a repayment, stop further auto-borrowing
+
+  const rows=[];
+
+  for(let yr=1;yr<=YEARS;yr++){
+    const twR=getRate(yr,p.rTW)/100;
+    const usR=getRate(yr,p.rUS)/100;
+    // Annual figures
+    const ySal=getSal(yr,p);
+    const yLiv=p.liv*12;
+    // Mortgage payment: only if balance>0 at start of year and within term
+    const mortRemPrev=mortRem(yr-1,p);
+    const yMg=(mortRemPrev>0&&yr<=p.ml?p.mg*12:0);
+    const yInvA=getMInvA(yr,p)*12;
+    const yInvB_base=getMInvB_sal(yr,p)*12;
+
+    // Pledge update (annual)
+    // pledgedVal tracks total 0050 market value used as collateral in B
+    // At maintenance ratio pm: max total borrow = pledgedVal / pm
+    // headroom = maxTotalBorrow - current pledgeLoan
+    pledgedVal*=(1+twR);
+    const stopB=yr>p.biy;
+    const pledgeYrStop = p.ply>0 && yr>p.ply;
+    pledgedVal+=yInvB_base*0.5;
+    // maxLoan = pledgedVal / pm  (pm=2.6 means 260% maintenance → max borrow = collateral/2.6)
+    const maxLoan=pledgeOn ? pledgedVal/p.pm : 0;
+    const loanCap = p.plc>0 ? p.plc : Infinity;
+    const roomToLoanCap = Math.max(0, loanCap - pledgeLoan);
+    // addLoan = headroom up to 8% of collateral per year, capped by loanCap
+    const headroom = Math.max(0, maxLoan - pledgeLoan);
+    const addLoan=(!pledgeOn||stopB||pledgeYrStop||pledgeRepaidOnce)?0:Math.min(headroom, pledgedVal*0.08, roomToLoanCap);
+    pledgedVal+=yInvB_base*0.5;
+    pledgedVal+=addLoan;
+    pledgeLoan+=addLoan;
+
+    // One-off pledge repayments (B only): reduce loan balance, deduct from bCash
+    // After any repayment, stop auto-borrowing to prevent immediately re-borrowing
+    const yPledgeRepay=(p.pledgeRepays||[]).filter(x=>x.yr===yr).reduce((s,x)=>s+x.val,0);
+    if(yPledgeRepay>0){
+      const actualRepay=Math.min(yPledgeRepay, pledgeLoan);
+      pledgeLoan=Math.max(0, pledgeLoan-actualRepay);
+      bCash-=actualRepay;
+      pledgeRepaidOnce=true; // lock: no more auto-borrowing after manual repayment
+    }
+
+    const yPledgeInt=pledgeLoan*p.pc;
+    const yInvB=yInvB_base+addLoan;
+
+    // Personal loan annual repayment — stop when fully repaid
+    const lRemPrev=loanRem(yr-1,p);
+    const yLoan=p.pl>0&&yr<=p.pll&&lRemPrev>0 ? Math.min(mLoanPay*12, lRemPrev) : 0;
+
+    // Annual cash flow
+    const yPrepay=(p.prepays||[]).filter(x=>x.yr===yr).reduce((s,x)=>s+x.val,0);
+    const yLumpExp=(p.lumps||[]).filter(x=>x.yr===yr).reduce((s,x)=>s+x.val,0);
+    const yCashSubA=ySal-yLiv-yMg-yPrepay-yLumpExp;
+    const yCashSubB=ySal-yLiv-yMg-yPledgeInt-yLoan-yPrepay-yLumpExp;
+
+    // Annual surplus = subtotal - annual invest
+    // If already cash-negative, don't invest more than available (invest from stocks instead)
+    // But we track raw surplus so user can see the deficit clearly
+    const ySurpA=yCashSubA-yInvA;
+    const ySurpB=yCashSubB-yInvB_base; // pledge addLoan goes to stocks not cash
+
+    // Accumulate cash — allow negative to show real deficit
+    aCash+=ySurpA;
+    bCash+=ySurpB;
+
+    // Grow stocks (monthly compounding)
+    const mInvA_m=getMInvA(yr,p);
+    const mInvB_m=getMInvB_sal(yr,p)+addLoan/12;
+    for(let m=0;m<12;m++){
+      aStock=aStock*(1+twR/12)+mInvA_m;
+      bStock=bStock*(1+twR/12)+mInvB_m;
+      usStock=usStock*(1+usR/12);
+    }
+
+    // Stock liquidation: sell TW/US stock → cash (A & B same sell instruction, capped separately)
+    const sellThis=(p.sells||[]).filter(x=>x.yr===yr);
+    let ySellTW=0, ySellUS=0;
+    for(const s of sellThis){
+      const sellTW_A=Math.min(s.tw, aStock);
+      const sellTW_B=Math.min(s.tw, bStock);
+      const sellUS=Math.min(s.us, usStock);
+      ySellTW+=sellTW_A; ySellUS+=sellUS;
+      if(sellTW_A>0){ aStock-=sellTW_A; aCash+=sellTW_A; }
+      if(sellTW_B>0){ bStock-=sellTW_B; bCash+=sellTW_B; pledgedVal-=sellTW_B; }
+    }
+    if(ySellUS>0){ usStock-=ySellUS; aCash+=ySellUS; bCash+=ySellUS; }
+
+    const mR=mortRem(yr,p);
+    const lR=loanRem(yr,p);
+    // Show real cash (can be negative = cash deficit, funded by selling stock implicitly)
+    const aCashNow=aCash;
+    const bCashNow=bCash;
+
+    const aNet=aStock+usStock+Math.max(0,aCashNow)-mR;
+    const bNet=bStock+usStock+Math.max(0,bCashNow)-mR-pledgeLoan-lR;
+
+    const maintRatio=pledgeLoan>0?(pledgedVal/pledgeLoan)*100:9999;
+    const fireTarget=p.fe/p.fw;
+
+    rows.push({yr,
+      // annual fixed
+      ySal:+ySal.toFixed(1), yLiv:+yLiv.toFixed(1), yMg:+yMg.toFixed(1),
+      yPrepay:+yPrepay.toFixed(1), yLumpExp:+yLumpExp.toFixed(1),
+      ySellTW:Math.round(ySellTW), ySellUS:Math.round(ySellUS),
+      // A annual
+      yInvA:+yInvA.toFixed(1),
+      yCashSubA:+yCashSubA.toFixed(1),
+      ySurpA:+ySurpA.toFixed(1),
+      aCash:Math.round(aCashNow),
+      aStock:Math.round(aStock),
+      usStock:Math.round(usStock),
+      mRem:Math.round(mR),
+      aNet:Math.round(aNet),
+      // B annual
+      yInvB:+yInvB.toFixed(1),
+      yInvB_base:+yInvB_base.toFixed(1),
+      yLoan:+yLoan.toFixed(1),
+      yPledgeInt:+yPledgeInt.toFixed(1),
+      yPledgeRepay:Math.round(yPledgeRepay||0),
+      yCashSubB:+yCashSubB.toFixed(1),
+      ySurpB:+ySurpB.toFixed(1),
+      bCash:Math.round(bCashNow),
+      bStock:Math.round(bStock),
+      pledgeLoan:Math.round(pledgeLoan),
+      lRem:Math.round(lR),
+      maintRatio:Math.round(maintRatio),
+      bNet:Math.round(bNet),
+      bDebt:Math.round(pledgeLoan+lR+mR),
+      salary:Math.round(getSal(yr,p)),
+      fireTarget:Math.round(fireTarget),
+      firePct:Math.min(999,Math.round((bNet/fireTarget)*100)),
+      mInvA:+getMInvA(yr,p).toFixed(2),
+      mInvB:+(getMInvB_sal(yr,p)+addLoan/12).toFixed(2),
+      stA:yr>p.aiy, stB:yr>p.biy,
+      workStopped: p.wy>0 && yr>p.wy,
+      loanActive:yr<=p.pll&&p.pl>0,
+    });
+  }
+  return rows;
+}
+
+function renderKPI(rows,p){
+  const last=rows[rows.length-1];
+  const extra=last.bNet-last.aNet;
+  const pct=last.aNet>0?((extra/last.aNet)*100).toFixed(1):0;
+  // Find worst cash deficit year for A and B
+  const aDeficit=rows.filter(r=>r.aCash<0);
+  const bDeficit=rows.filter(r=>r.bCash<0);
+  const defWarnA=aDeficit.length?`<div class="ks" style="color:var(--red)">⚠ 第${aDeficit[0].yr}年起現金缺口（最差${fmt(Math.min(...aDeficit.map(r=>r.aCash)))}萬）</div>`:'';
+  const defWarnB=bDeficit.length?`<div class="ks" style="color:var(--red)">⚠ 第${bDeficit[0].yr}年起現金缺口（最差${fmt(Math.min(...bDeficit.map(r=>r.bCash)))}萬）</div>`:'';
+  g('kpi-row').innerHTML=`
+    <div class="kpi a"><div class="kl">A 淨資產（第${p.ty}年）</div><div class="kv">${fmt(last.aNet)}萬</div><div class="ks">台股＋美股＋現金−房貸</div>${defWarnA}</div>
+    <div class="kpi b"><div class="kl">B 淨資產（第${p.ty}年）</div><div class="kv">${fmt(last.bNet)}萬</div><div class="ks">全部資產−所有負債</div>${defWarnB}</div>
+    <div class="kpi diff"><div class="kl">B 超額</div><div class="kv">${extra>=0?'+':''}${fmt(extra)}萬</div><div class="ks">較A${extra>=0?'多':'少'}${Math.abs(pct)}%</div></div>
+    <div class="kpi warn"><div class="kl">B 負債合計</div><div class="kv">${fmt(last.bDebt)}萬</div><div class="ks">質押+信貸+房貸餘</div></div>`;
+}
+
+function renderFIRE(rows,p){
+  const target=p.fe/p.fw;
+  const found=rows.find(r=>r.bNet>=target);
+  if(found){
+    g('fire-yr').textContent=`第${found.yr}年`;
+    g('fire-title').textContent=`FIRE 達成！B淨資產 ${fmt(found.bNet)}萬 ≥ 目標 ${fmt(target)}萬`;
+    g('fire-desc').textContent=`年支出${p.fe}萬 ÷ 提領率${(p.fw*100).toFixed(1)}% = 需${fmt(target)}萬`;
+    g('fire-banner').style.borderColor='rgba(0,229,160,.25)';
+  } else {
+    g('fire-yr').textContent=`${p.ty}年+`;
+    g('fire-title').textContent=`${p.ty}年內未達（需${fmt(target)}萬，差${fmt(target-rows[rows.length-1].bNet)}萬）`;
+    g('fire-desc').textContent=`可嘗試降低年支出、提高報酬率、或延長模擬年限`;
+    g('fire-banner').style.borderColor='rgba(248,113,113,.2)';
+  }
+}
+
+function renderCharts(rows,p){
+  const labels=rows.map(r=>`${r.yr}年`);
+  const fireTarget=p.fe/p.fw;
+  const gc='rgba(255,255,255,.04)', tc='#55556a';
+  const bs={
+    x:{ticks:{color:tc,font:{size:10},autoSkip:true,maxTicksLimit:10},grid:{display:false}},
+    y:{ticks:{color:tc,font:{size:10},callback:v=>v>=10000?Math.round(v/10000)+'億':fmt(v)+'萬'},grid:{color:gc}}
+  };
+  function mk(id,cfg){if(charts[id])charts[id].destroy();charts[id]=new Chart(g(id).getContext('2d'),cfg);}
+
+  mk('chart-main',{type:'line',data:{labels,datasets:[
+    {label:'B淨資產',data:rows.map(r=>r.bNet),borderColor:'#00e5a0',backgroundColor:'rgba(0,229,160,.06)',borderWidth:2,pointRadius:0,fill:true,tension:.3,yAxisID:'y'},
+    {label:'A淨資產',data:rows.map(r=>r.aNet),borderColor:'#4488ff',backgroundColor:'rgba(68,136,255,.04)',borderWidth:2,pointRadius:0,fill:true,tension:.3,yAxisID:'y'},
+    {label:'美股',data:rows.map(r=>r.usStock),borderColor:'#a78bfa',backgroundColor:'rgba(167,139,250,.03)',borderWidth:1.5,pointRadius:0,fill:true,tension:.3,yAxisID:'y',borderDash:[4,3]},
+    {label:'B負債',data:rows.map(r=>r.bDebt),type:'bar',backgroundColor:'rgba(245,158,11,.12)',borderColor:'#f59e0b',borderWidth:1,yAxisID:'y2'},
+  ]},options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,callbacks:{label:c=>c.dataset.label+': '+fmt(c.parsed.y)+'萬'}}},
+    scales:{...bs,y2:{position:'right',ticks:{color:tc,font:{size:10},callback:v=>fmt(v)+'萬'},grid:{display:false}}}}});
+
+  mk('chart-fire',{type:'line',data:{labels,datasets:[
+    {label:'B淨資產',data:rows.map(r=>r.bNet),borderColor:'#00e5a0',backgroundColor:'rgba(0,229,160,.05)',borderWidth:2,pointRadius:0,fill:true,tension:.3,yAxisID:'y'},
+    {label:'A淨資產',data:rows.map(r=>r.aNet),borderColor:'#4488ff',backgroundColor:'rgba(68,136,255,.03)',borderWidth:1.5,pointRadius:0,fill:false,tension:.3,yAxisID:'y'},
+    {label:'FIRE目標',data:rows.map(()=>fireTarget),borderColor:'#f87171',backgroundColor:'transparent',borderWidth:1.5,pointRadius:0,borderDash:[6,4],yAxisID:'y'},
+    {label:'B月投',data:rows.map(r=>r.mInvB),borderColor:'#f59e0b',backgroundColor:'transparent',borderWidth:1.5,pointRadius:0,fill:false,tension:.3,yAxisID:'y2',borderDash:[3,3]},
+    {label:'A月投',data:rows.map(r=>r.mInvA),borderColor:'#4488ff',backgroundColor:'transparent',borderWidth:1,pointRadius:0,fill:false,tension:.3,yAxisID:'y2',borderDash:[3,3]},
+  ]},options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,callbacks:{label:c=>{
+      if(c.dataset.yAxisID==='y2') return c.dataset.label+': '+fD(c.parsed.y,1)+'萬';
+      return c.dataset.label+': '+fmt(c.parsed.y)+'萬';
+    }}}},
+    scales:{...bs,y2:{position:'right',ticks:{color:tc,font:{size:10},callback:v=>fD(v,1)+'萬'},grid:{display:false}}}}});
+}
+
+function renderTable(rows,p){
+  const showYrs=[];
+  for(let y=1;y<=Math.min(10,p.ty);y++) showYrs.push(y);
+  [12,15,18,20,25,30,35,40,45,50].forEach(y=>{if(y>10&&y<=p.ty) showYrs.push(y);});
+  if(!showYrs.includes(p.ty)) showYrs.push(p.ty);
+
+  const cashInv=Math.round(p.cash*p.cashp);
+  const cashKeep=p.cash-cashInv;
+  const pledgeableBaseDisp=p.tw+cashInv+p.pl;
+  const pledgeI=p.pm>0&&p.pm!==1?Math.round(pledgeableBaseDisp/(p.pm-1)):0;
+  const mortgageTotal=p.hp-p.dp;
+
+  // Start row: snapshot of day-0 balances
+  // B台股起始：質押啟用時加入質押借款買入，否則與A相同
+  const bStockInit = p.pm>0&&p.pm!==1 ? p.tw+cashInv+pledgeI+p.pl : p.tw+cashInv;
+  const bNetInit = bStockInit+p.us+cashKeep-mortgageTotal-(p.pm>0&&p.pm!==1?pledgeI:0)-p.pl;
+  let html=`<tr class="start-row">
+    <td>起始點</td>
+    <td class="cd">—</td><td class="cd">—</td><td class="cd">—</td><td class="cd">—</td><td class="cd">—</td>
+    <!-- A start -->
+    <td class="cd sep-a">—</td>
+    <td class="ca">${fmt(cashKeep)}</td>
+    <td class="ca">${fmt(p.tw+cashInv)}</td>
+    <td class="cp">${fmt(p.us)}</td>
+    <td class="cr">−${fmt(mortgageTotal)}</td>
+    <td class="ca">${fmt(p.tw+cashInv+p.us+cashKeep-mortgageTotal)}</td>
+    <!-- B start -->
+    <td class="cd sep-b">—</td>
+    <td class="cd">—</td><td class="cd">—</td>
+    <td class="cb">${fmt(cashKeep)}</td>
+    <td class="cb">${fmt(bStockInit)}</td>
+    <td class="cp">${fmt(p.us)}</td>
+    <td class="${p.pm>0&&p.pm!==1?'cw':'cd'}">${p.pm>0&&p.pm!==1?'−'+fmt(pledgeI):'—'}</td>
+    <td class="${p.pl>0?'cr':'cd'}">${p.pl>0?'−'+fmt(p.pl):'—'}</td>
+    <td class="cr">−${fmt(mortgageTotal)}</td>
+    <td class="cd">${p.pm>0?Math.round(p.pm*100)+'%':'停用'}</td>
+    <td class="cb">${fmt(bNetInit)}</td>
+  </tr>`;
+
+  for(const y of showYrs){
+    const r=rows[y-1]; if(!r) continue;
+    const mil=(y===10||y===20||y===30||y===p.ty);
+    const mgOn=y<=p.ml;
+    const lnOn=r.loanActive;
+    const maintColor=r.maintRatio<200?'cr':r.maintRatio<250?'cw':'cd';
+    const badge=r.workStopped?(r.stA&&r.stB?'退休':'停薪'):(r.stA&&r.stB?'停投':'投資');
+    const badgeSt=r.workStopped||((r.stA||r.stB)&&r.workStopped);
+    html+=`<tr class="${mil?'mil':''}">
+      <td>${y}<span class="ph${r.workStopped?' st':''}">${badge}</span></td>
+      <!-- 共同收支（年） -->
+      <td class="cn">${fmt(r.ySal)}</td>
+      <td class="cr">−${fmt(r.yLiv)}</td>
+      <td class="${mgOn?'cr':'cd'}">${mgOn?'−'+fmt(r.yMg):'—'}</td>
+      <td class="${r.yPrepay>0?'cr':'cd'}">${r.yPrepay>0?'−'+fmt(r.yPrepay):'—'}</td>
+      <td class="${r.yLumpExp>0?'cr':'cd'}">${r.yLumpExp>0?'−'+fmt(r.yLumpExp):'—'}</td>
+      <!-- A -->
+      <td class="ca sep-a">${r.stA?'—':fmt(r.yInvA)}</td>
+      <td class="${r.aCash>=0?'ca':'cr'}">${fmt(r.aCash)}</td>
+      <td class="ca">${fmt(r.aStock)}</td>
+      <td class="cp">${fmt(r.usStock)}</td>
+      <td class="${mgOn?'cr':'cd'}">${mgOn?'−'+fmt(r.mRem):'—'}</td>
+      <td class="ca">${fmt(r.aNet)}</td>
+      <!-- B -->
+      <td class="cb sep-b">${r.stB?'—':fmt(r.yInvB_base)}</td>
+      <td class="${lnOn?'cr':'cd'}">${lnOn?'−'+fmt(r.yLoan):'—'}</td>
+      <td class="cw">−${fmt(r.yPledgeInt)}</td>
+      <td class="${r.bCash>=0?'cb':'cr'}">${fmt(r.bCash)}</td>
+      <td class="cb">${fmt(r.bStock)}</td>
+      <td class="cp">${fmt(r.usStock)}</td>
+      <td class="cw">−${fmt(r.pledgeLoan)}</td>
+      <td class="${lnOn?'cr':'cd'}">${lnOn?'−'+fmt(r.lRem):'—'}</td>
+      <td class="${mgOn?'cr':'cd'}">${mgOn?'−'+fmt(r.mRem):'—'}</td>
+      <td class="${maintColor}">${r.maintRatio>=9999?'∞':r.maintRatio+'%'}</td>
+      <td class="cb">${fmt(r.bNet)}</td>
+    </tr>`;
+  }
+  g('tbody').innerHTML=html;
+}
+
+function renderNote(p){
+  const pledgeI=p.pm>0?Math.round((p.tw+p.cash*p.cashp+p.pl)/(p.pm-1)):0;
+  const cashInv=Math.round(p.cash*p.cashp);
+  const salOvKeys=Object.keys(p.salOv||{});
+  const aOvKeys=Object.keys(p.aOv||{});
+  const bOvKeys=Object.keys(p.bOv||{});
+  const prepayStr=(p.prepays||[]).length>0?'房貸一次性還款：'+(p.prepays.map(x=>`第${x.yr}年${x.val}萬`).join('、'))+'；':'';
+  const lumpStr=(p.lumps||[]).length>0?'單次大額支出：'+(p.lumps.map(x=>`第${x.yr}年${x.val}萬`).join('、'))+'；':'';
+  const wyStr=p.wy>0?`工作年限 ${p.wy} 年，停薪後薪資歸零；投資可獨立繼續。`:'薪資無年限上限。';
+  g('note-box').textContent=
+    `起始假設：台股${p.tw}萬已持有；現金${p.cash}萬中${cashInv}萬投入0050，${p.cash-cashInv}萬保留備用金。`+
+    (p.hp>p.dp?`房貸本金${p.hp-p.dp}萬，利率${(p.mr*100).toFixed(1)}%，月供${p.mg}萬（含本息），${p.ml}年；`:'無房貸；')+
+    (p.pm>0?`B路線：質押首批${pledgeI}萬；`:'B路線：質押停用；')+
+    (p.pl>0?`信貸${p.pl}萬，月還款${fD(loanMPay(p),2)}萬，${p.pll}年還清；`:'信貸未使用；')+
+    (salOvKeys.length?`年收入覆蓋：第${salOvKeys.join('、')}年；`:'')+
+    (aOvKeys.length?`A月投覆蓋：第${aOvKeys.join('、')}年；`:'')+
+    (bOvKeys.length?`B月投覆蓋：第${bOvKeys.join('、')}年；`:'')+
+    prepayStr+lumpStr+wyStr+
+    `淨資產 = 台股＋美股＋現金備用 − 房貸餘額 − 質押借款 − 信貸餘額。`;
+}
+
+function update(){
+  const p=getP();
+  const rows=calcAll(p);
+  renderKPI(rows,p);
+  renderFIRE(rows,p);
+  renderCharts(rows,p);
+  renderTable(rows,p);
+  renderNote(p);
+}
+
+// ── Preset loader ──
+function loadPreset(){
+  // 台北雙薪族範例：35歲，有初始台股+美股，買房，A/B路線皆有月投
+  const preset={
+    cash:200, cashp:60,      // 現金200萬，60%投入0050
+    tw:150,  us:80,          // 台股150萬、美股80萬
+    dp:400,                  // 頭期款400萬（已備妥）
+    hp:2500, mr:2.0, mg:8, ml:30, // 房貸2500萬，利率2%，月供8萬，30年
+    sal:120, sal2:180, grow:8,    // 起薪120萬 → 8年成長至180萬
+    liv:6,                         // 生活費6萬/月
+    wy:0,                          // 不限工作年限
+    ami:3, amig:0.2, amim:8, aiy:40, // A路線月投3萬起，每年增0.2萬，上限8萬
+    bmi:2, bmig:0.2, bmim:6, biy:40, bpa:2, // B路線月投2萬起，信貸還清後增2萬
+    rTW:8, rUS:10, ty:35,
+    pc:2.6, pm:275, ply:15, plc:500, // 質押利率2.6%，維持率275%，增貸上限500萬
+    pl:100, plr:3.5, pll:7,           // 信貸100萬，利率3.5%，7年還清
+    fe:120, fw:4,                      // FIRE：年支出120萬，提領率4%
+  };
+  // Set sliders
+  Object.entries(preset).forEach(([k,v])=>{
+    const el=g('s-'+k); if(el){el.value=v; const vEl=g('v-'+k); if(vEl) vEl.textContent=v;}
+  });
+  syncInfoBoxes(); update();
+}
+
+syncInfoBoxes();
+update();
+</script>
+</body>
+</html>
