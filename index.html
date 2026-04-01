@@ -491,7 +491,7 @@ tr:hover td{background:rgba(0,0,0,.015);}
 </aside>
 
 <!-- MAIN -->
-<main class="main">
+<main class="main panel-hidden">
 <div class="sc-tabs">
   <button class="sc-tab active" onclick="setScenario('base',this)">基準情境</button>
   <button class="sc-tab bear" onclick="setScenario('bear',this)">熊市（連跌3年）</button>
@@ -1239,6 +1239,33 @@ function loadPreset(){
 
 syncInfoBoxes();
 update();
+
+// ── Init mobile panel state ──
+function initMobileLayout(){
+  const sidebar=document.querySelector('.sidebar');
+  const main=document.querySelector('.main');
+  // Disable transition during init to avoid flash animation
+  sidebar.style.transition='none';
+  main.style.transition='none';
+  if(window.innerWidth<=600){
+    // Start on settings panel — main hidden
+    main.classList.add('panel-hidden');
+    sidebar.classList.remove('panel-hidden');
+    g('nav-settings').classList.add('mob-active');
+    g('nav-results').classList.remove('mob-active');
+  } else {
+    // Desktop: ensure both panels visible
+    main.classList.remove('panel-hidden');
+    sidebar.classList.remove('panel-hidden');
+  }
+  // Re-enable transitions after a frame
+  requestAnimationFrame(()=>{
+    sidebar.style.transition='';
+    main.style.transition='';
+  });
+}
+initMobileLayout();
+window.addEventListener('resize', initMobileLayout);
 </script>
 </body>
 </html>
